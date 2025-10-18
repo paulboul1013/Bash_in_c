@@ -21,6 +21,10 @@ int dash_execute(char **args);
 int dash_exit(char **args);
 void loop();
 
+// Built-in commands
+int cmd_cd(char **args);
+int cmd_help(char **args);
+
 // ASCII related built-in commands
 int cmd_ascii_help(char **args);
 int cmd_ascii_table(char **args);
@@ -42,6 +46,14 @@ int dash_execute(char **args){
     
     if (strcmp(args[0],"exit")==0){
         return dash_exit(args);
+    }
+
+    // built-in commands
+    if (strcmp(args[0],"cd")==0){
+        return cmd_cd(args);
+    }
+    if (strcmp(args[0],"help")==0){
+        return cmd_help(args);
     }
 
     // built-in ascii commands
@@ -87,6 +99,94 @@ int dash_execute(char **args){
 
 int dash_exit(char **args){
     return 0;
+}
+
+// Built-in cd command
+int cmd_cd(char **args){
+    char cwd[1024];
+    static char prev_dir[1024] = {0};  // Store previous directory
+    
+    // No arguments or "cd ~" -> go to HOME
+    if (args[1] == NULL || strcmp(args[1], "~") == 0){
+        char *home = getenv("HOME");
+        if (home == NULL){
+            fprintf(stderr, "cd: HOME not set\n");
+            return 1;
+        }
+        // Save current directory before changing
+        if (getcwd(cwd, sizeof(cwd)) != NULL){
+            strncpy(prev_dir, cwd, sizeof(prev_dir) - 1);
+        }
+        if (chdir(home) != 0){
+            perror("cd");
+            return 1;
+        }
+        return 1;
+    }
+    
+    // cd - -> go to previous directory
+    if (strcmp(args[1], "-") == 0){
+        if (prev_dir[0] == '\0'){
+            fprintf(stderr, "cd: OLDPWD not set\n");
+            return 1;
+        }
+        // Save current directory
+        char temp[1024];
+        if (getcwd(temp, sizeof(temp)) == NULL){
+            perror("cd");
+            return 1;
+        }
+        // Change to previous directory
+        if (chdir(prev_dir) != 0){
+            perror("cd");
+            return 1;
+        }
+        // Update previous directory
+        strncpy(prev_dir, temp, sizeof(prev_dir) - 1);
+        printf("%s\n", prev_dir);  // Print the directory we switched to
+        return 1;
+    }
+    
+    // cd <path> -> go to specified directory
+    // Save current directory before changing
+    if (getcwd(cwd, sizeof(cwd)) != NULL){
+        strncpy(prev_dir, cwd, sizeof(prev_dir) - 1);
+    }
+    
+    if (chdir(args[1]) != 0){
+        perror("cd");
+        return 1;
+    }
+    
+    return 1;
+}
+
+// Built-in help command
+int cmd_help(char **args){
+    printf("Bash_in_c - 簡易 Shell\n\n");
+    printf("內建指令:\n");
+    printf("  help                       - 顯示此說明訊息\n");
+    printf("  exit                       - 退出 shell\n");
+    printf("  cd [dir]                   - 切換目錄\n");
+    printf("                               cd          -> 切換到 HOME 目錄\n");
+    printf("                               cd ~        -> 切換到 HOME 目錄\n");
+    printf("                               cd -        -> 切換到上一個目錄\n");
+    printf("                               cd <path>   -> 切換到指定目錄\n");
+    printf("  ascii-help                 - 顯示 ASCII 藝術指令說明\n");
+    printf("\nASCII 藝術指令:\n");
+    printf("  ascii-table                - 列出可列印 ASCII 字元表\n");
+    printf("  ascii-box [text...]        - 使用方框包住文字\n");
+    printf("  progress [width] [ms]      - 顯示進度條動畫\n");
+    printf("  spinner [ms]               - 顯示轉輪動畫\n");
+    printf("  matrix [frames] [width]    - 顯示矩陣雨效果\n");
+    printf("  clock [duration]           - 顯示 ASCII 藝術時鐘\n");
+    printf("\n其他:\n");
+    printf("  任何系統指令 (如 ls, pwd, echo 等)\n");
+    printf("\n快捷鍵:\n");
+    printf("  ↑/↓                        - 瀏覽命令歷史\n");
+    printf("  Ctrl+C                     - 中斷當前指令\n");
+    printf("  Ctrl+D                     - 退出 shell\n");
+    return 1;
 }
 
 int cmd_ascii_help(char **args){
