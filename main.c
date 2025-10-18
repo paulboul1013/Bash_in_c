@@ -28,6 +28,7 @@ int cmd_ascii_box(char **args);
 int cmd_progress(char **args);
 int cmd_spinner(char **args);
 int cmd_matrix(char **args);
+int cmd_clock(char **args);
 
 int TK_BUFF_SIZE=1024;
 
@@ -62,6 +63,9 @@ int dash_execute(char **args){
     if (strcmp(args[0],"matrix")==0){
         return cmd_matrix(args);
     }
+    if (strcmp(args[0],"clock")==0){
+        return cmd_clock(args);
+    }
 
     cpid=fork();
 
@@ -93,6 +97,7 @@ int cmd_ascii_help(char **args){
     printf("  progress [width] [ms]      - 顯示進度條動畫，預設 width=30 ms=1500\n");
     printf("  spinner [ms]               - 顯示轉輪動畫，預設 ms=1500\n");
     printf("  matrix [frames] [width]    - 顯示矩陣雨效果，預設 frames=40 width=80\n");
+    printf("  clock [duration]           - 顯示 ASCII 藝術時鐘，預設持續 10 秒\n");
     return 1;
 }
 
@@ -226,6 +231,108 @@ int cmd_matrix(char **args){
         fflush(stdout);
         usleep(50000); // 50ms
     }
+    return 1;
+}
+
+// ASCII art clock command
+int cmd_clock(char **args){
+    // ASCII art digits (5 rows each)
+    const char *digits[10][5] = {
+        // 0
+        {" ███ ", "█   █", "█   █", "█   █", " ███ "},
+        // 1
+        {"  █  ", " ██  ", "  █  ", "  █  ", " ███ "},
+        // 2
+        {" ███ ", "█   █", "   █ ", "  █  ", "█████"},
+        // 3
+        {" ███ ", "█   █", "  ██ ", "█   █", " ███ "},
+        // 4
+        {"█   █", "█   █", "█████", "    █", "    █"},
+        // 5
+        {"█████", "█    ", "████ ", "    █", "████ "},
+        // 6
+        {" ███ ", "█    ", "████ ", "█   █", " ███ "},
+        // 7
+        {"█████", "    █", "   █ ", "  █  ", " █   "},
+        // 8
+        {" ███ ", "█   █", " ███ ", "█   █", " ███ "},
+        // 9
+        {" ███ ", "█   █", " ████", "    █", " ███ "}
+    };
+    
+    // Colon separator (5 rows)
+    const char *colon[5] = {"  ", "█ ", "  ", "█ ", "  "};
+    
+    int duration = 10; // default 10 seconds
+    if (args[1]!=NULL){
+        int d = atoi(args[1]);
+        if (d>0 && d<3600) duration = d;
+    }
+    
+    time_t start_time = time(NULL);
+    time_t current_time;
+    
+    printf("\033[?25l"); // Hide cursor
+    
+    while (1){
+        current_time = time(NULL);
+        if (difftime(current_time, start_time) >= duration){
+            break;
+        }
+        
+        struct tm *tm_info = localtime(&current_time);
+        int hour = tm_info->tm_hour;
+        int min = tm_info->tm_min;
+        int sec = tm_info->tm_sec;
+        
+        // Get individual digits
+        int h1 = hour / 10;
+        int h2 = hour % 10;
+        int m1 = min / 10;
+        int m2 = min % 10;
+        int s1 = sec / 10;
+        int s2 = sec % 10;
+        
+        // Clear screen and move to top
+        printf("\033[2J\033[H");
+        
+        // Print clock title
+        printf("\n   ╔═══════════════════════════════════════════════════╗\n");
+        printf("   ║            ASCII 藝術時鐘 ⏰                      ║\n");
+        printf("   ╚═══════════════════════════════════════════════════╝\n\n");
+        
+        // Print each row of the digits
+        int row;
+        for (row=0; row<5; row++){
+            printf("        ");
+            printf("%s", digits[h1][row]);
+            printf("%s", digits[h2][row]);
+            printf("%s", colon[row]);
+            printf("%s", digits[m1][row]);
+            printf("%s", digits[m2][row]);
+            printf("%s", colon[row]);
+            printf("%s", digits[s1][row]);
+            printf("%s", digits[s2][row]);
+            printf("\n");
+        }
+        
+        // Print date
+        printf("\n           %04d/%02d/%02d (%s)\n", 
+               tm_info->tm_year + 1900, 
+               tm_info->tm_mon + 1, 
+               tm_info->tm_mday,
+               (tm_info->tm_wday==0)?"日":(tm_info->tm_wday==1)?"一":
+               (tm_info->tm_wday==2)?"二":(tm_info->tm_wday==3)?"三":
+               (tm_info->tm_wday==4)?"四":(tm_info->tm_wday==5)?"五":"六");
+        
+        printf("\n        按 Ctrl+C 停止顯示...\n");
+        
+        fflush(stdout);
+        usleep(500000); // Update every 0.5 seconds
+    }
+    
+    printf("\033[?25h"); // Show cursor
+    printf("\n");
     return 1;
 }
 
