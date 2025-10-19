@@ -20,6 +20,8 @@ char **split_line(char *line);
 int dash_execute(char **args);
 int dash_exit(char **args);
 void loop();
+int has_pipe(char **args);
+int execute_pipe(char **args);
 
 // Built-in commands
 int cmd_cd(char **args);
@@ -77,6 +79,11 @@ int dash_execute(char **args){
     }
     if (strcmp(args[0],"clock")==0){
         return cmd_clock(args);
+    }
+
+    // Check for pipe
+    if (has_pipe(args)){
+        return execute_pipe(args);
     }
 
     cpid=fork();
@@ -439,29 +446,68 @@ int cmd_clock(char **args){
 char **split_line(char *line) {
     int buffsize=1024,position=0;
     char **tokens=malloc(sizeof(char*)*buffsize);
-    char *token;
+    char *token_start = NULL;
+    int in_quotes = 0;
+    int i = 0;
+    int token_len = 0;
 
     if (!tokens){
         fprintf(stderr,"%s dash: Allocation error%s\n",RED,RESET);
         exit(EXIT_FAILURE);
     }
 
-    token=strtok(line,TOK_DELIM);
-    while (token!=NULL){
-        tokens[position++]=token;
+    // Skip leading whitespace
+    while (line[i] && (line[i] == ' ' || line[i] == '\t' || line[i] == '\r' || line[i] == '\n')){
+        i++;
+    }
 
-        if (position>=buffsize){
-            buffsize+=TK_BUFF_SIZE;
-            tokens=realloc(tokens,sizeof(char*)*buffsize);
-
-            if (!tokens){
-                fprintf(stderr,"%s dash: Allocation error%s\n",RED,RESET);
-                exit(EXIT_FAILURE);
+    token_start = &line[i];
+    
+    while (line[i]) {
+        if (line[i] == '"' && (i == 0 || line[i-1] != '\\')){
+            // Toggle quote state and remove the quote
+            in_quotes = !in_quotes;
+            // Shift characters left to remove the quote
+            int j;
+            for (j = i; line[j]; j++){
+                line[j] = line[j+1];
             }
-
+            continue;  // Don't increment i, check the same position again
         }
         
-        token=strtok(NULL,TOK_DELIM);
+        if (!in_quotes && (line[i] == ' ' || line[i] == '\t' || line[i] == '\r' || line[i] == '\n')){
+            // End of token
+            if (token_len > 0){
+                line[i] = '\0';
+                tokens[position++] = token_start;
+                
+                if (position>=buffsize){
+                    buffsize+=TK_BUFF_SIZE;
+                    tokens=realloc(tokens,sizeof(char*)*buffsize);
+                    if (!tokens){
+                        fprintf(stderr,"%s dash: Allocation error%s\n",RED,RESET);
+                        exit(EXIT_FAILURE);
+                    }
+                }
+                token_len = 0;
+            }
+            
+            // Skip whitespace
+            i++;
+            while (line[i] && (line[i] == ' ' || line[i] == '\t' || line[i] == '\r' || line[i] == '\n')){
+                i++;
+            }
+            token_start = &line[i];
+            continue;
+        }
+        
+        token_len++;
+        i++;
+    }
+    
+    // Add last token if exists
+    if (token_len > 0){
+        tokens[position++] = token_start;
     }
 
     tokens[position]=NULL;
@@ -515,6 +561,139 @@ char *read_line() {
 //         }
 //     }
 // }
+
+// Check if command contains pipe
+int has_pipe(char **args){
+    int i = 0;
+    while (args[i] != NULL){
+        if (strcmp(args[i], "|") == 0){
+            return 1;
+        }
+        i++;
+    }
+    return 0;
+}
+
+// Execute piped commands
+int execute_pipe(char **args){
+    int i, j;
+    int pipe_count = 0;
+    
+    // Count number of pipes
+    for (i = 0; args[i] != NULL; i++){
+        if (strcmp(args[i], "|") == 0){
+            pipe_count++;
+        }
+    }
+    
+    if (pipe_count == 0){
+        return 1;
+    }
+    
+    // Split commands by pipe
+    char ***commands = malloc(sizeof(char**) * (pipe_count + 1));
+    if (!commands){
+        fprintf(stderr, "dash: allocation error\n");
+        return 1;
+    }
+    
+    int cmd_idx = 0;
+    int arg_start = 0;
+    
+    for (i = 0; i <= pipe_count; i++){
+        commands[i] = malloc(sizeof(char*) * 1024);
+        if (!commands[i]){
+            fprintf(stderr, "dash: allocation error\n");
+            return 1;
+        }
+    }
+    
+    // Parse commands
+    j = 0;
+    for (i = 0; args[i] != NULL; i++){
+        if (strcmp(args[i], "|") == 0){
+            commands[cmd_idx][j] = NULL;
+            cmd_idx++;
+            j = 0;
+        } else {
+            commands[cmd_idx][j++] = args[i];
+        }
+    }
+    commands[cmd_idx][j] = NULL;
+    
+    // Create pipes
+    int (*pipes)[2] = malloc(sizeof(int[2]) * pipe_count);
+    if (!pipes){
+        fprintf(stderr, "dash: allocation error\n");
+        return 1;
+    }
+    
+    for (i = 0; i < pipe_count; i++){
+        if (pipe(pipes[i]) < 0){
+            perror("pipe");
+            return 1;
+        }
+    }
+    
+    // Execute commands
+    pid_t pid;
+    int num_cmds = pipe_count + 1;
+    
+    for (i = 0; i < num_cmds; i++){
+        pid = fork();
+        
+        if (pid < 0){
+            perror("fork");
+            return 1;
+        }
+        
+        if (pid == 0){
+            // Child process
+            
+            // If not first command, get input from previous pipe
+            if (i > 0){
+                dup2(pipes[i-1][0], STDIN_FILENO);
+            }
+            
+            // If not last command, output to next pipe
+            if (i < num_cmds - 1){
+                dup2(pipes[i][1], STDOUT_FILENO);
+            }
+            
+            // Close all pipe file descriptors
+            for (j = 0; j < pipe_count; j++){
+                close(pipes[j][0]);
+                close(pipes[j][1]);
+            }
+            
+            // Execute command
+            if (execvp(commands[i][0], commands[i]) < 0){
+                printf("dash: command not found: %s\n", commands[i][0]);
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
+    
+    // Parent process: close all pipes
+    for (i = 0; i < pipe_count; i++){
+        close(pipes[i][0]);
+        close(pipes[i][1]);
+    }
+    
+    // Wait for all children
+    for (i = 0; i < num_cmds; i++){
+        wait(NULL);
+    }
+    
+    // Free memory
+    for (i = 0; i <= pipe_count; i++){
+        free(commands[i]);
+    }
+    free(commands);
+    free(pipes);
+    
+    return 1;
+}
 
 void loop() {
     char *line=NULL;
