@@ -11,6 +11,7 @@ gcc -Wall -Wextra -o main main.c -lreadline
 
 - ✅ 基本 shell 功能（fork + execvp）
 - ✅ Readline 支援（命令歷史、行編輯）
+- ✅ 引號處理 - 支援雙引號包裹參數（如 `grep "^d"`、`echo "Hello World"`）
 - ✅ 內建指令：
   - `cd` - 目錄切換（支援 `cd`, `cd ~`, `cd -`, `cd <path>`）
   - `help` - 顯示完整指令說明
@@ -22,12 +23,13 @@ gcc -Wall -Wextra -o main main.c -lreadline
   - `spinner` - 旋轉動畫
   - `matrix` - 矩陣雨效果
   - `clock` - ASCII 藝術時鐘（即時更新顯示）
+- ✅ **管道 (Pipe) 支援** - 實作 `|` 運算子，支援 `ls | grep txt`、`ps aux | grep bash` 等多重管道命令
 
 ## 未來功能規劃
 
 ### 核心功能擴展
 - [x] **內建 cd 指令** - 實作目錄切換功能 ✅ 已完成
-- [ ] **管道 (Pipe) 支援** - 實作 `|` 運算子，支援 `ls | grep txt`
+- [x] **管道 (Pipe) 支援** - 實作 `|` 運算子，支援 `ls | grep txt` ✅ 已完成
 - [ ] **重導向 (Redirection)** - 實作 `>`, `>>`, `<` 運算子
 - [ ] **背景執行** - 支援 `&` 讓程序在背景執行
 - [ ] **環境變數** - 支援 `export`、`$VAR` 變數展開
