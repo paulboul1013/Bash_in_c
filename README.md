@@ -1,11 +1,28 @@
 # Bash_in_c
 
 一個用 C 語言實作的輕量級 Shell，支援基本指令執行
+
 ## 編譯方法
 
 ```bash
 gcc -Wall -Wextra -o main main.c -lreadline
 ```
+
+## 使用示例
+
+### 天氣查詢功能
+
+```bash
+# 查詢當前位置的天氣（自動偵測）
+weather
+
+# 查詢指定城市的天氣
+weather Taipei
+weather "New York"
+weather Tokyo
+```
+
+**注意**: 天氣查詢功能需要安裝 `curl` 命令。如果系統中沒有 curl，會顯示安裝提示。
 
 ## 現有功能
 
@@ -23,6 +40,7 @@ gcc -Wall -Wextra -o main main.c -lreadline
   - `spinner` - 旋轉動畫
   - `matrix` - 矩陣雨效果
   - `clock` - ASCII 藝術時鐘（即時更新顯示）
+- ✅ **天氣查詢** - `weather [city]` 顯示天氣資訊（使用 wttr.in API）
 - ✅ **管道 (Pipe) 支援** - 實作 `|` 運算子，支援 `ls | grep txt`、`ps aux | grep bash` 等多重管道命令
 
 ## 未來功能規劃
@@ -60,7 +78,7 @@ gcc -Wall -Wextra -o main main.c -lreadline
 
 ### 趣味功能
 - [x] **時鐘顯示** - ASCII 藝術時鐘 ✅ 已完成
-- [ ] **天氣查詢** - `weather [city]` 顯示天氣資訊
+- [x] **天氣查詢** - `weather [city]` 顯示天氣資訊 ✅ 已完成
 - [ ] **計算機** - 簡易計算功能
 - [ ] **顏色主題** - 可切換的配色方案
 - [ ] **遊戲模式** - 內建簡單的文字遊戲（如貪食蛇、猜數字）

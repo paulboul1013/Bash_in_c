@@ -35,6 +35,7 @@ int cmd_progress(char **args);
 int cmd_spinner(char **args);
 int cmd_matrix(char **args);
 int cmd_clock(char **args);
+int cmd_weather(char **args);
 
 int TK_BUFF_SIZE=1024;
 
@@ -79,6 +80,9 @@ int dash_execute(char **args){
     }
     if (strcmp(args[0],"clock")==0){
         return cmd_clock(args);
+    }
+    if (strcmp(args[0],"weather")==0){
+        return cmd_weather(args);
     }
 
     // Check for pipe
@@ -187,6 +191,7 @@ int cmd_help(char **args){
     printf("  spinner [ms]               - 顯示轉輪動畫\n");
     printf("  matrix [frames] [width]    - 顯示矩陣雨效果\n");
     printf("  clock [duration]           - 顯示 ASCII 藝術時鐘\n");
+    printf("  weather [city]             - 顯示天氣資訊\n");
     printf("\n其他:\n");
     printf("  任何系統指令 (如 ls, pwd, echo 等)\n");
     printf("\n快捷鍵:\n");
@@ -440,6 +445,67 @@ int cmd_clock(char **args){
     
     printf("\033[?25h"); // Show cursor
     printf("\n");
+    return 1;
+}
+
+int cmd_weather(char **args) {
+    // 檢查 curl 是否可用
+    if (system("command -v curl > /dev/null 2>&1") != 0) {
+        printf(RED "錯誤: 找不到 curl 命令。請先安裝 curl%s\n", RESET);
+        printf("    Ubuntu/Debian: sudo apt-get install curl\n");
+        printf("    CentOS/RHEL:   sudo yum install curl\n");
+        return 1;
+    }
+    
+    // 構建 URL
+    char url[512];
+    char city[256] = "";
+    
+    if (args[1] != NULL) {
+        // 有指定城市
+        strncpy(city, args[1], sizeof(city) - 1);
+        city[sizeof(city) - 1] = '\0';
+        
+        // URL 編碼城市名稱（簡單處理，將空格替換為+）
+        char encoded_city[256];
+        int j = 0;
+        for (int i = 0; city[i] != '\0' && j < sizeof(encoded_city) - 1; i++) {
+            if (city[i] == ' ') {
+                encoded_city[j++] = '+';
+            } else {
+                encoded_city[j++] = city[i];
+            }
+        }
+        encoded_city[j] = '\0';
+        
+        snprintf(url, sizeof(url), "https://wttr.in/%s?format=3", encoded_city);
+    } else {
+        // 沒有指定城市，使用當前位置
+        snprintf(url, sizeof(url), "https://wttr.in/?format=3");
+    }
+    
+    printf(GREEN "正在查詢天氣資訊...\n" RESET);
+    if (args[1] != NULL) {
+        printf("城市: %s\n\n", city);
+    } else {
+        printf("位置: 自動偵測\n\n");
+    }
+    
+    // 使用 curl 獲取天氣資訊
+    char cmd[1024];
+    snprintf(cmd, sizeof(cmd), "curl -s '%s'", url);
+    
+    int ret = system(cmd);
+    
+    if (ret != 0) {
+        printf(RED "無法獲取天氣資訊。請檢查網路連線或稍後再試。%s\n", RESET);
+        return 1;
+    }
+    
+    printf("\n");
+    printf("提示: 使用 'curl wttr.in/%s' 查看更詳細的天氣資訊\n", 
+           args[1] != NULL ? city : "");
+    
     return 1;
 }
 
