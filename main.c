@@ -2,11 +2,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>   // pid_t
-#include <unistd.h>      // fork, execvp
+#include <sys/stat.h>    // stat, utime
+#include <utime.h>       // utime
+#include <unistd.h>      // fork, execvp, unlink
 #include <sys/wait.h>    // waitpid, WUNTRACED
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <time.h>
+#include <errno.h>       // errno
 
 
 #define TOK_DELIM " \t\r\n"
@@ -26,6 +29,9 @@ int execute_pipe(char **args);
 // Built-in commands
 int cmd_cd(char **args);
 int cmd_help(char **args);
+int cmd_cat(char **args);
+int cmd_touch(char **args);
+int cmd_rm(char **args);
 
 // ASCII related built-in commands
 int cmd_ascii_help(char **args);
@@ -83,6 +89,15 @@ int dash_execute(char **args){
     }
     if (strcmp(args[0],"weather")==0){
         return cmd_weather(args);
+    }
+    if (strcmp(args[0],"cat")==0){
+        return cmd_cat(args);
+    }
+    if (strcmp(args[0],"touch")==0){
+        return cmd_touch(args);
+    }
+    if (strcmp(args[0],"rm")==0){
+        return cmd_rm(args);
     }
 
     // Check for pipe
@@ -192,6 +207,10 @@ int cmd_help(char **args){
     printf("  matrix [frames] [width]    - 顯示矩陣雨效果\n");
     printf("  clock [duration]           - 顯示 ASCII 藝術時鐘\n");
     printf("  weather [city]             - 顯示天氣資訊\n");
+    printf("\n檔案操作指令:\n");
+    printf("  cat [file...]              - 顯示檔案內容\n");
+    printf("  touch [file...]            - 創建檔案或更新時間戳\n");
+    printf("  rm [file...]               - 刪除檔案\n");
     printf("\n其他:\n");
     printf("  任何系統指令 (如 ls, pwd, echo 等)\n");
     printf("\n快捷鍵:\n");
@@ -507,6 +526,114 @@ int cmd_weather(char **args) {
            args[1] != NULL ? city : "");
     
     return 1;
+}
+
+// Built-in cat command - 顯示檔案內容
+int cmd_cat(char **args) {
+    if (args[1] == NULL) {
+        // 沒有指定檔案，從標準輸入讀取
+        char buffer[4096];
+        size_t bytes_read;
+        while ((bytes_read = fread(buffer, 1, sizeof(buffer), stdin)) > 0) {
+            fwrite(buffer, 1, bytes_read, stdout);
+        }
+        return 1;
+    }
+    
+    int i;
+    int error_occurred = 0;
+    
+    for (i = 1; args[i] != NULL; i++) {
+        FILE *file = fopen(args[i], "r");
+        if (file == NULL) {
+            fprintf(stderr, "cat: %s: %s\n", args[i], strerror(errno));
+            error_occurred = 1;
+            continue;
+        }
+        
+        char buffer[4096];
+        size_t bytes_read;
+        
+        while ((bytes_read = fread(buffer, 1, sizeof(buffer), file)) > 0) {
+            fwrite(buffer, 1, bytes_read, stdout);
+        }
+        
+        if (ferror(file)) {
+            fprintf(stderr, "cat: %s: 讀取錯誤\n", args[i]);
+            error_occurred = 1;
+        }
+        
+        fclose(file);
+    }
+    
+    return error_occurred ? 1 : 1;
+}
+
+// Built-in touch command - 創建檔案或更新時間戳
+int cmd_touch(char **args) {
+    if (args[1] == NULL) {
+        fprintf(stderr, "touch: 缺少檔案名稱\n");
+        return 1;
+    }
+    
+    int i;
+    int error_occurred = 0;
+    
+    for (i = 1; args[i] != NULL; i++) {
+        FILE *file = fopen(args[i], "a");
+        if (file == NULL) {
+            fprintf(stderr, "touch: %s: %s\n", args[i], strerror(errno));
+            error_occurred = 1;
+            continue;
+        }
+        fclose(file);
+        
+        // 更新時間戳
+        struct utimbuf times;
+        times.actime = time(NULL);
+        times.modtime = time(NULL);
+        
+        if (utime(args[i], &times) != 0) {
+            // 如果檔案不存在，utime 會失敗，但我們已經創建了檔案
+            // 所以這裡的錯誤可以忽略（檔案已創建）
+            if (errno != ENOENT) {
+                fprintf(stderr, "touch: %s: 無法更新時間戳: %s\n", args[i], strerror(errno));
+                error_occurred = 1;
+            }
+        }
+    }
+    
+    return error_occurred ? 1 : 1;
+}
+
+// Built-in rm command - 刪除檔案
+int cmd_rm(char **args) {
+    if (args[1] == NULL) {
+        fprintf(stderr, "rm: 缺少檔案名稱\n");
+        return 1;
+    }
+    
+    int i;
+    int error_occurred = 0;
+    
+    for (i = 1; args[i] != NULL; i++) {
+        // 檢查是否為目錄
+        struct stat path_stat;
+        if (stat(args[i], &path_stat) == 0) {
+            if (S_ISDIR(path_stat.st_mode)) {
+                fprintf(stderr, "rm: %s: 是一個目錄（不支援刪除目錄）\n", args[i]);
+                error_occurred = 1;
+                continue;
+            }
+        }
+        
+        if (unlink(args[i]) != 0) {
+            fprintf(stderr, "rm: %s: %s\n", args[i], strerror(errno));
+            error_occurred = 1;
+        }
+    }
+    
+    return error_occurred ? 1 : 1;
 }
 
 char **split_line(char *line) {

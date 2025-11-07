@@ -33,6 +33,9 @@ weather Tokyo
   - `cd` - 目錄切換（支援 `cd`, `cd ~`, `cd -`, `cd <path>`）
   - `help` - 顯示完整指令說明
   - `exit` - 退出 shell
+  - `cat [file...]` - 顯示檔案內容
+  - `touch [file...]` - 創建檔案或更新時間戳
+  - `rm [file...]` - 刪除檔案
 - ✅ ASCII 藝術指令集：
   - `ascii-table` - ASCII 字元表
   - `ascii-box` - 文字方框
@@ -42,6 +45,7 @@ weather Tokyo
   - `clock` - ASCII 藝術時鐘（即時更新顯示）
 - ✅ **天氣查詢** - `weather [city]` 顯示天氣資訊（使用 wttr.in API）
 - ✅ **管道 (Pipe) 支援** - 實作 `|` 運算子，支援 `ls | grep txt`、`ps aux | grep bash` 等多重管道命令
+- ✅ **檔案操作指令** - `cat`、`touch`、`rm` 等內建實作（不直接調用系統命令）
 
 ## 未來功能規劃
 
@@ -56,7 +60,7 @@ weather Tokyo
 
 ### 內建指令擴充
 - [x] **help 指令** - 更完整的內建指令說明 ✅ 已完成
-- [ ] **檔案操作** - `cat`、`touch`、`rm` 等簡化版內建實作
+- [x] **檔案操作** - `cat`、`touch`、`rm` 等簡化版內建實作 ✅ 已完成
 - [ ] **系統資訊** - `sysinfo` 顯示系統資訊（CPU、記憶體使用率）
 - [ ] **歷史指令** - `history` 指令查看命令歷史
 - [ ] **別名功能** - `alias` 和 `unalias` 指令
