@@ -29,6 +29,7 @@ int execute_pipe(char **args);
 // Built-in commands
 int cmd_cd(char **args);
 int cmd_help(char **args);
+int cmd_history(char **args);
 int cmd_cat(char **args);
 int cmd_touch(char **args);
 int cmd_rm(char **args);
@@ -63,6 +64,9 @@ int dash_execute(char **args){
     }
     if (strcmp(args[0],"help")==0){
         return cmd_help(args);
+    }
+    if (strcmp(args[0],"history")==0){
+        return cmd_history(args);
     }
 
     // built-in ascii commands
@@ -198,6 +202,7 @@ int cmd_help(char **args){
     printf("                               cd ~        -> 切換到 HOME 目錄\n");
     printf("                               cd -        -> 切換到上一個目錄\n");
     printf("                               cd <path>   -> 切換到指定目錄\n");
+    printf("  history [n]                - 顯示命令歷史（可選參數 n 限制顯示數量）\n");
     printf("  ascii-help                 - 顯示 ASCII 藝術指令說明\n");
     printf("\nASCII 藝術指令:\n");
     printf("  ascii-table                - 列出可列印 ASCII 字元表\n");
@@ -217,6 +222,44 @@ int cmd_help(char **args){
     printf("  ↑/↓                        - 瀏覽命令歷史\n");
     printf("  Ctrl+C                     - 中斷當前指令\n");
     printf("  Ctrl+D                     - 退出 shell\n");
+    return 1;
+}
+
+// Built-in history command
+int cmd_history(char **args){
+    HIST_ENTRY **hist_list = history_list();
+    
+    if (hist_list == NULL){
+        printf("沒有命令歷史記錄\n");
+        return 1;
+    }
+    
+    int limit = -1; // -1 表示顯示全部
+    if (args[1] != NULL){
+        limit = atoi(args[1]);
+        if (limit <= 0){
+            fprintf(stderr, "history: 參數必須是正整數\n");
+            return 1;
+        }
+    }
+    
+    // 計算歷史記錄總數
+    int total = 0;
+    while (hist_list[total] != NULL){
+        total++;
+    }
+    
+    // 決定從哪裡開始顯示
+    int start = 0;
+    if (limit > 0 && total > limit){
+        start = total - limit;
+    }
+    
+    // 顯示歷史記錄
+    for (int i = start; i < total; i++){
+        printf("%5d  %s\n", i + 1, hist_list[i]->line);
+    }
+    
     return 1;
 }
 
@@ -708,7 +751,7 @@ char **split_line(char *line) {
     return tokens;
 }
 
-//有歷史功能德read_line
+//有歷史功能的read_line
 char *read_line() {
 	char *line = readline("> ");
 	if (line == NULL) {
