@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <pthread.h>
 
 /* shell color code
 \033:轉義字符
@@ -88,12 +91,25 @@ char **split_line(char *line) {
 }
 
 int dash_exit(char **args) {
+    (void)args;
     return 0;
+}
+
+//define the shell command
+int paul(char **args){
+    (void)args;
+    printf("Paul is a project author\n");
+    exit(EXIT_SUCCESS);
+    return 1;
 }
 
 int dash_execute(char **args) {
     pid_t cpid;
     int status;
+
+    int (*builtins[])(char **) = {
+        &paul,
+    };
     
     if (strncmp(args[0],"exit",4)==0){
         return dash_exit(args);
@@ -102,7 +118,10 @@ int dash_execute(char **args) {
     cpid=fork();
 
     if (cpid==0) {
-        if (execvp(args[0],args)<0){
+        if (strncmp(args[0],"paul",4)==0){
+            builtins[0](args);
+        }
+        else if (execvp(args[0],args)<0){
             printf("dash: command not found: %s\n",args[0]);
             exit(EXIT_FAILURE);
         }
