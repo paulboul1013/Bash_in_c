@@ -5,6 +5,9 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <pthread.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 /* shell color code
 \033:轉義字符
@@ -16,9 +19,16 @@ m:轉義結束
 #define RED "\033[0;31m"
 #define RESET "\033[0m"
 
+static char **history_list=NULL;
+
 #define TOK_DELIM " \t\r\n"
 
 #define TK_BUFF_SIZE 64
+
+#define SHM_NAME "/my_shared_mem"
+
+static int *history_count=NULL;
+
 
 char *readline();
 char **split_line(char *);
@@ -95,10 +105,21 @@ int dash_exit(char **args) {
     return 0;
 }
 
+
 //define the shell command
 int paul(char **args){
     (void)args;
     printf("Paul is a project author\n");
+    exit(EXIT_SUCCESS);
+    return 1;
+}
+
+int history(char **args){
+    (void)args;
+    printf("History %d\n",(*history_count));
+    for(int i=0;i<(*history_count);i++){
+        printf("%d. %s\n",i+1,history_list[i]);
+    }
     exit(EXIT_SUCCESS);
     return 1;
 }
@@ -109,6 +130,7 @@ int dash_execute(char **args) {
 
     int (*builtins[])(char **) = {
         &paul,
+        &history,
     };
     
     if (strncmp(args[0],"exit",4)==0){
@@ -118,13 +140,27 @@ int dash_execute(char **args) {
     cpid=fork();
 
     if (cpid==0) {
+        //execute the self defined shell command
         if (strncmp(args[0],"paul",4)==0){
+
+            (*history_count)++;
             builtins[0](args);
+
+
         }
-        else if (execvp(args[0],args)<0){
+        else if (strncmp(args[0],"history",7)==0){
+            (*history_count)++;
+            builtins[1](args);
+        }
+        //execute original shell command
+        else if (execvp(args[0],args)>0){
+
+            int pass=0xDEAD;
+        }else{
             printf("dash: command not found: %s\n",args[0]);
             exit(EXIT_FAILURE);
         }
+
     } else if (cpid < 0){
         printf(RED "Error forking" RESET "\n");
 
@@ -142,12 +178,38 @@ void loop() {
     char *line;
     char **args;
     int status=1;
+    int shm_fd;
+
+    // Create or open shared memory object
+    shm_fd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);
+    if (shm_fd == -1) {
+        perror("shm_open error");
+        exit(EXIT_FAILURE);
+    }
+
+    // Set size of shared memory
+    if (ftruncate(shm_fd, sizeof(int)) == -1) {
+        perror("ftruncate error");
+        exit(EXIT_FAILURE);
+    }
+
+    // Map shared memory into process address space
+    history_count = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    if (history_count == MAP_FAILED) {
+        perror("mmap error");
+        exit(EXIT_FAILURE);
+    }
+
+    // Initialize shared variable in parent
+    (*history_count) = 0;
     
     do{
         printf("> ");
         line=readline();
         args=split_line(line);
         status=dash_execute(args);
+        printf("history_count: %d\n",(*history_count));
+
         free(line);
         free(args);
     }while(status);
