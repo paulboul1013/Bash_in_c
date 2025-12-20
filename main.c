@@ -142,13 +142,14 @@ int dash_execute(char **args) {
     if (cpid==0) {
         //execute the self defined shell command
         if (strncmp(args[0],"paul",4)==0){
-
+            history_list[(*history_count)]="paul";
             (*history_count)++;
             builtins[0](args);
 
 
         }
         else if (strncmp(args[0],"history",7)==0){
+            history_list[(*history_count)]="history";
             (*history_count)++;
             builtins[1](args);
         }
@@ -188,21 +189,27 @@ void loop() {
     }
 
     // Set size of shared memory
-    if (ftruncate(shm_fd, sizeof(int)) == -1) {
+    if (ftruncate(shm_fd, sizeof(int) + sizeof(char*)*100) == -1) {
         perror("ftruncate error");
         exit(EXIT_FAILURE);
     }
 
     // Map shared memory into process address space
-    history_count = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
-    if (history_count == MAP_FAILED) {
+    void *shared_mem = mmap(NULL, sizeof(int) + sizeof(char*)*100, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    if (shared_mem == MAP_FAILED) {
         perror("mmap error");
         exit(EXIT_FAILURE);
     }
 
+    // Set pointers to different parts of shared memory
+    history_count = (int*)shared_mem;
+    history_list = (char**)((char*)shared_mem + sizeof(int));
+
     // Initialize shared variable in parent
     (*history_count) = 0;
-    
+    memset(history_list, 0, sizeof(char*)*100);
+
+
     do{
         printf("> ");
         line=readline();
