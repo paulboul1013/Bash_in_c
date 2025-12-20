@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdlib.h>
 
 /* shell color code
@@ -86,13 +87,37 @@ char **split_line(char *line) {
     return tokens;
 }
 
-int dash_execute(char **args) {
-    return 0;
-}
-
 int dash_exit(char **args) {
     return 0;
 }
+
+int dash_execute(char **args) {
+    pid_t cpid;
+    int status;
+    
+    if (strncmp(args[0],"exit",4)==0){
+        return dash_exit(args);
+    }
+
+    cpid=fork();
+
+    if (cpid==0) {
+        if (execvp(args[0],args)<0){
+            printf("dash: command not found: %s\n",args[0]);
+            exit(EXIT_FAILURE);
+        }
+    } else if (cpid < 0){
+        printf(RED "Error forking" RESET "\n");
+
+    }else{
+        waitpid(cpid,&status,WUNTRACED);
+    }
+    
+
+    return 1;
+}
+
+
 
 void loop() {
     char *line;
