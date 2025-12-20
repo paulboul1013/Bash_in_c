@@ -12,6 +12,10 @@ m:轉義結束
 #define RED "\033[0;31m"
 #define RESET "\033[0m"
 
+#define TOK_DELIM " \t\r\n"
+
+#define TK_BUFF_SIZE 64
+
 char *readline();
 char **split_line(char *);
 int dash_execute(char **);
@@ -50,7 +54,36 @@ char *readline() {
 }
 
 char **split_line(char *line) {
-    return NULL;
+    int buffsize=TK_BUFF_SIZE,position=0;
+    char **tokens=malloc(sizeof(char*)*buffsize);//define two-dimensional array
+    char *token;
+
+    if (!tokens){
+        fprintf(stderr,"%sdash: Allocation error%s\n",RED,RESET);
+        exit(EXIT_FAILURE);
+    }
+
+    token=strtok(line,TOK_DELIM);//split the line into token
+    while (token!=NULL){
+        tokens[position++]=token;
+
+        if (position>=buffsize){
+            buffsize+=TK_BUFF_SIZE;
+            tokens=realloc(tokens,sizeof(char*)*buffsize);
+
+            if (!tokens){
+                fprintf(stderr,"%sdash: Allocation error%s\n",RED,RESET);
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        token=strtok(NULL,TOK_DELIM);//get the next token
+    }
+
+    tokens[position]='\0';
+
+
+    return tokens;
 }
 
 int dash_execute(char **args) {
