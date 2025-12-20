@@ -4,22 +4,27 @@
 
 The lightweight shell with C
 
-##安裝套件
+## feature command
+- paul: print the text
+- history:show history record with command
+- other shell command from origin command，but some doesn't work
+
+## install package
 ```bash
 sudo apt-get install -y libreadline-dev
 ```
 
-## 編譯方法
+## compile way
 
 ```bash
 gcc -Wall -Wextra -o main main.c -lreadline
 ```
 
-
 ## to-do
+implement other command
 
 
-## 參考資料
+## reference
 - https://github.com/danishprakash/dash/tree/master  
 - https://danishpraka.sh/posts/write-a-shell/
 
