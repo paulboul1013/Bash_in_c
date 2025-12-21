@@ -19,7 +19,8 @@ m:轉義結束
 #define RED "\033[0;31m"
 #define RESET "\033[0m"
 
-static char **history_list=NULL;
+static char **history_list=NULL;//history save list
+static int *history_count=NULL;//history count
 
 #define TOK_DELIM " \t\r\n"
 
@@ -27,7 +28,7 @@ static char **history_list=NULL;
 
 #define SHM_NAME "/my_shared_mem"
 
-static int *history_count=NULL;
+
 
 
 char *readline();
@@ -146,7 +147,6 @@ int dash_execute(char **args) {
             (*history_count)++;
             builtins[0](args);
 
-
         }
         else if (strncmp(args[0],"history",7)==0){
             history_list[(*history_count)]="history";
@@ -176,8 +176,8 @@ int dash_execute(char **args) {
 
 
 void loop() {
-    char *line;
-    char **args;
+    char *line=malloc(sizeof(char)*1024);
+    char **args=malloc(sizeof(char*)*1024);
     int status=1;
     int shm_fd;
 
@@ -213,6 +213,9 @@ void loop() {
     do{
         printf("> ");
         line=readline();
+        if (line==NULL || strncmp(line,"\0",1)==0){
+            continue;
+        }
         args=split_line(line);
         status=dash_execute(args);
         printf("history_count: %d\n",(*history_count));
