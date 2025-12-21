@@ -49,7 +49,7 @@ char *readline() {
 
     while (1){
         c=getchar();
-        if (c==EOF || c=='\n') {
+        if (c==EOF || c=='\n' || c=='\t') {
             buffer[position]='\0';
             return buffer;
         }else{
@@ -214,11 +214,12 @@ void loop() {
         printf("> ");
         line=readline();
         if (line==NULL || strncmp(line,"\0",1)==0){
+            printf("\r");
             continue;
         }
         args=split_line(line);
         status=dash_execute(args);
-        printf("history_count: %d\n",(*history_count));
+        // printf("history_count: %d\n",(*history_count));
 
         free(line);
         free(args);
