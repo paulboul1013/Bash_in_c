@@ -19,12 +19,14 @@ m:轉義結束
 #define RED "\033[0;31m"
 #define RESET "\033[0m"
 
-static char **history_list=NULL;//history save list
-static int *history_count=NULL;//history count
-
 #define TOK_DELIM " \t\r\n"
 
 #define TK_BUFF_SIZE 64
+#define MAX_CMD_NAME_LEN 256
+#define MAX_HISTORY_SIZE 100
+
+static char (*history_list)[MAX_CMD_NAME_LEN]=NULL;//history save list (字串陣列)
+static int *history_count=NULL;//history count
 
 #define SHM_NAME "/my_shared_mem"
 
@@ -117,7 +119,7 @@ int paul(char **args){
 
 int history(char **args){
     (void)args;
-    printf("History %d\n",(*history_count));
+    printf("History %d\n", (*history_count));
     for(int i=0;i<(*history_count);i++){
         printf("%d. %s\n",i+1,history_list[i]);
     }
@@ -143,29 +145,38 @@ int bash_execute(char **args) {
     if (cpid==0) {
         //execute the self defined shell command
         if (strncmp(args[0],"paul",4)==0){
-            history_list[(*history_count)]="paul";
-            (*history_count)++;
+            if ((*history_count) < MAX_HISTORY_SIZE) {
+                strcpy(history_list[(*history_count)], "paul");
+                (*history_count)++;
+            }
             builtins[0](args);
             exit(EXIT_SUCCESS);
         }
         else if (strncmp(args[0],"history",7)==0){
-            history_list[(*history_count)]="history";
-            (*history_count)++;
+            if ((*history_count) < MAX_HISTORY_SIZE) {
+                strcpy(history_list[(*history_count)], "history");
+                (*history_count)++;
+            }
             builtins[1](args);
             exit(EXIT_SUCCESS);
         }
         //execute original shell command
-        else if (execvp(args[0], args) == -1) {
-            printf("bash: command not found: %s\n", args[0]);
-            exit(EXIT_FAILURE);
-        }else{
-            printf("bash: command not found: %s\n",args[0]);
-            exit(EXIT_FAILURE);
+        else {
+            // 記錄 execvp 執行的命令名稱（在共享內存中）
+            if ((*history_count) < MAX_HISTORY_SIZE) {
+                int cmd_len = strlen(args[0]);
+                if (cmd_len < MAX_CMD_NAME_LEN) {
+                    strcpy(history_list[(*history_count)], args[0]);
+                    (*history_count)++;
+                }
+            }
+            
+            // 執行 execvp
+            if (execvp(args[0], args) == -1) {
+                printf("bash: command not found: %s\n", args[0]);
+                exit(EXIT_FAILURE);
+            }
         }
-
-
-
-
 
     } else if (cpid < 0){
         printf(RED "Error forking" RESET "\n");
@@ -194,14 +205,15 @@ void loop() {
         exit(EXIT_FAILURE);
     }
 
-    // Set size of shared memory
-    if (ftruncate(shm_fd, sizeof(int) + sizeof(char*)*100) == -1) {
+    // Set size of shared memory (history_count + history_list字串陣列)
+    size_t shm_size = sizeof(int) + sizeof(char)*MAX_CMD_NAME_LEN*MAX_HISTORY_SIZE;
+    if (ftruncate(shm_fd, shm_size) == -1) {
         perror("ftruncate error");
         exit(EXIT_FAILURE);
     }
 
     // Map shared memory into process address space
-    void *shared_mem = mmap(NULL, sizeof(int) + sizeof(char*)*100, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    void *shared_mem = mmap(NULL, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
     if (shared_mem == MAP_FAILED) {
         perror("mmap error");
         exit(EXIT_FAILURE);
@@ -209,11 +221,11 @@ void loop() {
 
     // Set pointers to different parts of shared memory
     history_count = (int*)shared_mem;
-    history_list = (char**)((char*)shared_mem + sizeof(int));
+    history_list = (char(*)[MAX_CMD_NAME_LEN])((char*)shared_mem + sizeof(int));
 
     // Initialize shared variable in parent
     (*history_count) = 0;
-    memset(history_list, 0, sizeof(char*)*100);
+    memset(history_list, 0, sizeof(char)*MAX_CMD_NAME_LEN*MAX_HISTORY_SIZE);
 
 
     do{
