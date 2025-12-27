@@ -146,26 +146,32 @@ int bash_execute(char **args) {
             history_list[(*history_count)]="paul";
             (*history_count)++;
             builtins[0](args);
-
+            exit(EXIT_SUCCESS);
         }
         else if (strncmp(args[0],"history",7)==0){
             history_list[(*history_count)]="history";
             (*history_count)++;
             builtins[1](args);
+            exit(EXIT_SUCCESS);
         }
         //execute original shell command
-        else if (execvp(args[0],args)>0){
-
-            int pass=0xDEAD;
+        else if (execvp(args[0], args) == -1) {
+            printf("bash: command not found: %s\n", args[0]);
+            exit(EXIT_FAILURE);
         }else{
             printf("bash: command not found: %s\n",args[0]);
             exit(EXIT_FAILURE);
         }
 
+
+
+
+
     } else if (cpid < 0){
         printf(RED "Error forking" RESET "\n");
 
     }else{
+
         waitpid(cpid,&status,WUNTRACED);
     }
     
