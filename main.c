@@ -33,8 +33,8 @@ static int *history_count=NULL;//history count
 
 char *readline();
 char **split_line(char *);
-int dash_execute(char **);
-int dash_exit(char**);
+int bash_execute(char **);
+int bash_exit(char**);
 
 char *readline() {
     int buffsize=1024;
@@ -43,7 +43,7 @@ char *readline() {
     int c;
 
     if(!buffer) {
-        fprintf(stderr,"%sdash: Allocation error%s\n",RED,RESET);
+        fprintf(stderr,"%sbash: Allocation error%s\n",RED,RESET);
         exit(EXIT_FAILURE);
     }
 
@@ -61,7 +61,7 @@ char *readline() {
             buffer=realloc(buffer,buffsize);
 
             if (!buffer) {
-                fprintf(stderr,"dash: Allocation error\n");
+                fprintf(stderr,"bash: Allocation error\n");
                 exit(EXIT_FAILURE);
             }
         }
@@ -74,7 +74,7 @@ char **split_line(char *line) {
     char *token;
 
     if (!tokens){
-        fprintf(stderr,"%sdash: Allocation error%s\n",RED,RESET);
+        fprintf(stderr,"%sbash: Allocation error%s\n",RED,RESET);
         exit(EXIT_FAILURE);
     }
 
@@ -87,7 +87,7 @@ char **split_line(char *line) {
             tokens=realloc(tokens,sizeof(char*)*buffsize);
 
             if (!tokens){
-                fprintf(stderr,"%sdash: Allocation error%s\n",RED,RESET);
+                fprintf(stderr,"%sbash: Allocation error%s\n",RED,RESET);
                 exit(EXIT_FAILURE);
             }
         }
@@ -101,7 +101,7 @@ char **split_line(char *line) {
     return tokens;
 }
 
-int dash_exit(char **args) {
+int bash_exit(char **args) {
     (void)args;
     return 0;
 }
@@ -125,7 +125,7 @@ int history(char **args){
     return 1;
 }
 
-int dash_execute(char **args) {
+int bash_execute(char **args) {
     pid_t cpid;
     int status;
 
@@ -135,7 +135,7 @@ int dash_execute(char **args) {
     };
     
     if (strncmp(args[0],"exit",4)==0){
-        return dash_exit(args);
+        return bash_exit(args);
     }
 
     cpid=fork();
@@ -158,7 +158,7 @@ int dash_execute(char **args) {
 
             int pass=0xDEAD;
         }else{
-            printf("dash: command not found: %s\n",args[0]);
+            printf("bash: command not found: %s\n",args[0]);
             exit(EXIT_FAILURE);
         }
 
@@ -218,7 +218,7 @@ void loop() {
             continue;
         }
         args=split_line(line);
-        status=dash_execute(args);
+        status=bash_execute(args);
         // printf("history_count: %d\n",(*history_count));
 
         free(line);
