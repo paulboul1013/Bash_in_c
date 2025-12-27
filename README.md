@@ -2,12 +2,12 @@
 
 ## introduce
 
-The lightweight shell with C
+The simple shell with C
 
 ## feature command
-- paul: print the text
+- paul: print the testing text
 - history:show history record with command
-- other shell command from origin command，but some doesn't work
+- other: same command from origin bash
 
 ## install package
 ```bash
@@ -20,8 +20,11 @@ sudo apt-get install -y libreadline-dev
 gcc -Wall -Wextra -o main main.c -lreadline
 ```
 
-## to-do
-implement other command
+or
+
+```bash
+make
+```
 
 
 ## reference
